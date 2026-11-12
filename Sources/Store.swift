@@ -44,6 +44,7 @@ final class Store: ObservableObject {
         didSet { UserDefaults.standard.set(openOnPaste, forKey: "openOnPaste") }
     }
     var close: () -> Void = {}
+    var showSettings: () -> Void = {}
 
     private let spotlight = SpotlightSearch()
     private var debounce: DispatchWorkItem?

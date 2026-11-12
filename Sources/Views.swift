@@ -228,6 +228,10 @@ struct ContentView: View {
             Spacer()
             Text(HotKey.current.label).font(.system(size: 10.5, weight: .medium, design: .rounded)).foregroundStyle(.tertiary)
                 .help("Global shortcut for Path Opener")
+            Button { store.showSettings() } label: {
+                Image(systemName: "gearshape").font(.system(size: 12)).foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain).help("Settings")
         }
         .padding(.horizontal, 14).frame(height: 34)
         .background(Color.primary.opacity(0.025))

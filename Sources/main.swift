@@ -12,9 +12,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let popover = NSPopover()
     var hotKeyRef: EventHotKeyRef?
     var handlerInstalled = false
+    var panel: LauncherPanel!
+    static let showNote = Notification.Name("com.thothica.pathopener.show")
 
     func applicationDidFinishLaunching(_ n: Notification) {
         AppDelegate.shared = self
+
+        // One copy at a time: if another is running, ask it to show itself and quit.
+        let me = NSRunningApplication.current
+        if let id = Bundle.main.bundleIdentifier,
+           NSRunningApplication.runningApplications(withBundleIdentifier: id).contains(where: { $0 != me }) {
+            DistributedNotificationCenter.default().postNotificationName(AppDelegate.showNote, object: nil, userInfo: nil, deliverImmediately: true)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { NSApp.terminate(nil) }
+            return
+        }
+        DistributedNotificationCenter.default().addObserver(forName: AppDelegate.showNote, object: nil, queue: .main) { _ in
+            AppDelegate.shared.showPanel()
+        }
+
+        panel = LauncherPanel(store: store)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let b = statusItem.button {
             let img = NSImage(systemSymbolName: "arrow.up.forward.square", accessibilityDescription: "Path Opener")
@@ -27,8 +43,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.behavior = .transient
         popover.animates = true
         popover.contentViewController = NSHostingController(rootView: ContentView(store: store))
-        store.close = { [weak self] in self?.popover.performClose(nil) }
+        store.close = { [weak self] in
+            self?.popover.performClose(nil)
+            self?.panel.dismiss()
+        }
+        store.showSettings = { [weak self] in self?.showSettingsMenu() }
         registerHotKey()
+
+        // Opened by hand (Finder, Launchpad, Spotlight): show the window so something happens.
+        // Skip it right after startup, when Launch at Login opens us.
+        if ProcessInfo.processInfo.systemUptime > 180 {
+            DispatchQueue.main.async { self.showPanel() }
+        }
+    }
+
+    /// Double-clicking the app while it runs.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showPanel(); return false
+    }
+
+    /// Global shortcut and app launches: the floating Spotlight-style window.
+    func showPanel(toggle: Bool = false) {
+        if popover.isShown { popover.performClose(nil) }
+        if panel.isVisible {
+            if toggle { panel.dismiss() } else { panel.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true) }
+            return
+        }
+        store.prepareForShow()
+        panel.present()
+        DispatchQueue.main.async { self.store.focusTick += 1 }
+    }
+
+    /// The settings menu, shown from the gear in the window footer.
+    func showSettingsMenu() {
+        guard let w = NSApp.keyWindow, let v = w.contentView else { return }
+        let m = buildMenu()
+        m.popUp(positioning: nil, at: NSPoint(x: v.bounds.maxX - 30, y: 30), in: v)
     }
 
     @objc func clicked(_ sender: NSStatusBarButton) {
@@ -47,6 +97,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func showMenu() {
+        statusItem.menu = buildMenu()
+        statusItem.button?.performClick(nil)
+        statusItem.menu = nil
+    }
+
+    func buildMenu() -> NSMenu {
         let m = NSMenu()
         m.addItem(item("Open Path Opener", #selector(menuOpen)))
         m.addItem(.separator())
@@ -69,16 +125,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         m.addItem(item("Clear Recents", #selector(clearRecents)))
         m.addItem(.separator())
         m.addItem(NSMenuItem(title: "Quit Path Opener", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-        statusItem.menu = m
-        statusItem.button?.performClick(nil)
-        statusItem.menu = nil
+        return m
     }
 
     private func item(_ title: String, _ sel: Selector) -> NSMenuItem {
         let i = NSMenuItem(title: title, action: sel, keyEquivalent: ""); i.target = self; return i
     }
 
-    @objc func menuOpen() { DispatchQueue.main.async { self.toggle() } }
+    @objc func menuOpen() { DispatchQueue.main.async { self.showPanel() } }
     @objc func togglePaste() { store.openOnPaste.toggle() }
     @objc func clearRecents() { store.clearRecents() }
     @objc func pickHotKey(_ sender: NSMenuItem) {
@@ -98,7 +152,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !handlerInstalled {
             var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
             InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
-                DispatchQueue.main.async { AppDelegate.shared.toggle() }
+                DispatchQueue.main.async { AppDelegate.shared.showPanel(toggle: true) }
                 return noErr
             }, 1, &spec, nil, nil)
             handlerInstalled = true

@@ -1,6 +1,6 @@
 # Path Opener
 
-A small macOS menu bar launcher. Click the icon (or press a shortcut), then:
+A small macOS launcher that lives in the menu bar. Press **⌥⌘O** (or open the app, or click its menu bar icon) and a Spotlight-style window appears. Then:
 
 - **Paste a path** and it opens. Files open in their default app; folders open in Finder.
 - **Type keywords** to search apps, files, folders and the text inside your documents, using the same index as Spotlight.
@@ -40,12 +40,14 @@ When the clipboard already holds a path, opening Path Opener fills it in for you
 | `esc` | Clear the field, then close |
 | `⌥⌘O` | Open Path Opener from anywhere (changeable) |
 
-Right-click the menu bar icon for: shortcut choice, Open Instantly on Paste, Launch at Login, Clear Recents, Quit.
+The gear in the window (or right-clicking the menu bar icon) has: shortcut choice, Open Instantly on Paste, Launch at Login, Clear Recents, Quit.
+
+**Can't see the menu bar icon?** On MacBooks with a notch, macOS hides menu bar icons when the bar is full. Path Opener still works: use the shortcut, or open the app from Finder, Launchpad or Spotlight and the window appears. To make room for the icon, hold ⌘ and drag other icons out of the menu bar.
 
 ### Using it in place of Spotlight (`⌘Space`)
 
 1. Open **System Settings → Keyboard → Keyboard Shortcuts… → Spotlight** and untick **Show Spotlight search**.
-2. Right-click the Path Opener icon → **Shortcut → ⌘Space**.
+2. In Path Opener, click the gear → **Shortcut → ⌘Space**.
 
 ## Install
 
@@ -65,7 +67,7 @@ A prebuilt `.zip` is attached to each [release](https://github.com/adoistic/path
 
 - `Sources/PathParser.swift` cleans pasted text into a real path and finds the nearest existing folder.
 - `Sources/Search.swift` runs two `NSMetadataQuery` searches over the Spotlight index (names, then contents), filters out developer noise (`node_modules`, virtualenvs, caches, `Library`) and ranks results by match quality, app-ness, recent use and your own recents. It also holds the calculator and website detection.
-- `Sources/Store.swift` turns the input into rows. `Sources/Views.swift` is the SwiftUI popover. `Sources/main.swift` is the menu bar item and the global shortcut.
+- `Sources/Store.swift` turns the input into rows. `Sources/Views.swift` is the SwiftUI popover. `Sources/Panel.swift` is the floating window. `Sources/main.swift` is the menu bar item, the global shortcut and the one-copy-at-a-time rule.
 
 No network access except when you choose a website or web search row. Recents are kept in the app's local preferences.
 
